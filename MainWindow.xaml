@@ -1,0 +1,305 @@
+<Window x:Class="FastImageDupe.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:FastImageDupe"
+        Title="FastImageDupe - 極速圖片去重複工具" Height="768" Width="1200" WindowStartupLocation="CenterScreen" WindowState="Maximized">
+    
+    <Window.Resources>
+        <local:PathToImageConverter x:Key="PathToImageConverter"/>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="RowDirGroup" Height="4*"/>
+            <RowDefinition x:Name="RowSplitter" Height="5"/>
+            <RowDefinition x:Name="RowFileList" Height="7*"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,5">
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                <TextBlock x:Name="TxtHeader" Text="📁 圖片去重複掃描" FontSize="20" FontWeight="Bold" Foreground="#1F2937" Margin="0,0,0,10"/>
+
+                <GroupBox x:Name="GrpScanSettings" Header="掃描條件設定" Padding="5" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock x:Name="TxtTargetPath" Grid.Row="0" Grid.Column="0" Text="目標路徑:" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                        <TextBox x:Name="PathTextBox" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,5,5" ToolTip="可輸入多個路徑，以分號 (;) 隔開"/>
+                        <Button x:Name="BtnAddPath" Grid.Row="0" Grid.Column="2" Content="加入..." Width="50" Margin="0,0,5,5" Click="BrowseFolder_Click"/>
+                        <Button x:Name="BtnClearPath" Grid.Row="0" Grid.Column="3" Content="清除" Width="50" Margin="0,0,15,5" Click="ClearPath_Click"/>
+                        <CheckBox x:Name="ChkSubDir" Grid.Row="0" Grid.Column="4" Content="包含子目錄" IsChecked="True" VerticalAlignment="Center" Margin="0,0,15,5"/>
+
+                        <TextBlock x:Name="TxtExcludePath" Grid.Row="1" Grid.Column="0" Text="排除目錄:" VerticalAlignment="Center" Margin="0,0,5,5" Foreground="DarkRed"/>
+                        <TextBox x:Name="ExcludePathTextBox" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                        <Button x:Name="BtnAddExclude" Grid.Row="1" Grid.Column="2" Content="加入..." Width="50" Margin="0,0,5,5" Click="BrowseExcludeFolder_Click"/>
+                        <Button x:Name="BtnClearExclude" Grid.Row="1" Grid.Column="3" Content="清除" Width="50" Margin="0,0,15,5" Click="ClearExcludePath_Click"/>
+                    </Grid>
+                </GroupBox>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <WrapPanel Grid.Column="0" Orientation="Horizontal">
+                        <!-- 💡 新增：場景感知掃描模式選擇 RadioButton -->
+                        <StackPanel Margin="0,0,10,5" VerticalAlignment="Center">
+                            <RadioButton x:Name="RbPersonalAlbum" Content="🔘 個人相簿 (嚴格模式)" IsChecked="True" FontWeight="Bold" Foreground="#374151" Margin="0,0,0,2"/>
+                            <RadioButton x:Name="RbInternetMode" Content="⚪ 網路下載 (寬鬆模式)" Foreground="#4B5563"/>
+                        </StackPanel>
+                        
+                        <Button x:Name="BtnScan" Content="🚀 開始掃描" Width="120" Height="30" Margin="0,0,10,5" Click="BtnScan_Click" Background="#FFFFEBF2"/>
+                        <Button x:Name="BtnLang" Content="🌐 English" Width="120" Height="30" Margin="0,0,10,5" Click="BtnLang_Click" Background="#FFF5EE"/>
+                        <Button x:Name="BtnReadMe" Content="📖 說明 (Read Me)" Width="120" Height="30" Margin="0,0,15,5" Click="BtnReadMe_Click" Background="#FFF0F8FF"/>
+                        <Button x:Name="BtnToggleMode" Content="🔄 切換輕度/專業模式" Width="170" Height="30" Margin="0,0,10,5" Click="BtnToggleMode_Click" Background="#FBBF24" Foreground="#1F2937" FontWeight="Bold"/>
+                        <Button x:Name="BtnRecovery" Content="🔄 復原管理" Width="160" Height="30" Margin="0,0,10,5" Click="BtnRecovery_Click" Background="#10B981" Foreground="White" FontWeight="Bold"/>
+                        <Button x:Name="BtnSmartSelect" Content="🧹 智慧一鍵處理" Width="160" Height="30" Margin="0,0,10,5" Click="BtnSmartSelect_Click" Background="#8B5CF6" Foreground="White" FontWeight="Bold"/>
+                        
+                        <Border Background="#ECFDF5" BorderBrush="#34D399" BorderThickness="1" CornerRadius="4" Padding="10,2" Margin="5,0,0,5" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtSafeTipTop" Text="🛡️ 安心提示：所有刪除皆為「假刪除」，隨時可還原！" Foreground="#059669" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+                        </Border>
+                    </WrapPanel>
+                    
+                    <TextBlock x:Name="StatusText" Grid.Column="1" Text="準備就緒" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="DimGray" Margin="5,0,10,0"/>
+                </Grid>
+            </StackPanel>
+
+            <GroupBox x:Name="GrpDirGroupSettings" Header="📂 操作說明：請選擇保留目錄，以及檔案移動方式">
+                <ListView x:Name="DirGroupListView" SelectionChanged="DirGroupListView_SelectionChanged">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Width="60">
+                                <GridViewColumn.Header>
+                                    <CheckBox x:Name="ChkSelectAllGroups" Content="全選" IsChecked="True" Click="CheckBoxSelectAllGroups_Click" HorizontalAlignment="Center"/>
+                                </GridViewColumn.Header>
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" Click="DirGroupCheckBox_Click" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+
+                            <GridViewColumn x:Name="ColBigGroupId" Header="大群組 ID" DisplayMemberBinding="{Binding GroupId}" Width="100"/>
+                            
+                            <GridViewColumn x:Name="ColDirA" Header="目錄 A" Width="380">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DirA}" Visibility="{Binding VisSameDir}" FontWeight="SemiBold" Foreground="#374151"/>
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding VisCrossDir}">
+                                                <RadioButton GroupName="{Binding GroupId, StringFormat='DirGroup_{0}'}" IsChecked="{Binding IsTargetDirA, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                
+                                                <TextBlock Text="{Binding DirA}" ToolTip="{Binding DirA}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" MaxWidth="320">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#374151"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasMultipleConflicts}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#DC2626"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding ConflictWarningLocalized}" Visibility="{Binding VisMultipleConflicts}" Foreground="#DC2626" FontWeight="Bold" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            
+                            <GridViewColumn x:Name="ColDirB" Header="目錄 B" Width="380">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center" Visibility="{Binding VisCrossDir}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <RadioButton GroupName="{Binding GroupId, StringFormat='DirGroup_{0}'}" IsChecked="{Binding IsTargetDirB, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding DirB}" ToolTip="{Binding DirB}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" MaxWidth="340" Foreground="#374151" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+
+                            <GridViewColumn x:Name="ColMoveMode" Header="合併搬移模式" Width="260">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center" Visibility="{Binding VisCrossDir}">
+                                            <RadioButton Content="{Binding MoveModeDuplicatesOnlyText}" IsChecked="{Binding MoveDuplicatesOnly, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" GroupName="{Binding GroupId, StringFormat='MoveMode_{0}'}" Margin="0,2" Foreground="#059669" FontWeight="Bold"/>
+                                            <RadioButton Content="{Binding MoveModeAllText}" IsChecked="{Binding MoveAllFiles, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" GroupName="{Binding GroupId, StringFormat='MoveMode_{0}'}" Margin="0,2" Foreground="#4B5563"/>
+                                            <RadioButton Content="{Binding MoveModeMediaText}" IsChecked="{Binding MoveMediaOnly, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" GroupName="{Binding GroupId, StringFormat='MoveMode_{0}'}" Margin="0,2" Foreground="#4B5563"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            
+                            <GridViewColumn x:Name="ColAction" Header="操作" Width="330">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding VisNormalAction}">
+                                                <Button Content="{Binding BtnPreviewPlanText}" Click="BtnPreviewPlan_Click" Background="#8B5CF6" Foreground="White" BorderThickness="0" Padding="8,4" Margin="0,0,5,0" FontWeight="Bold" Cursor="Hand"/>
+                                                <Button Content="{Binding BtnMergeSelectedText}" Click="BtnMergeSelected_Click" Background="#3B82F6" Foreground="White" BorderThickness="0" Padding="8,4" Margin="0,0,5,0" FontWeight="Bold" Cursor="Hand"/>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding VisMultiGroupAction}">
+                                                <Button Content="{Binding BtnMultiGroupPreviewText}" Click="BtnMultiGroupPreview_Click" Background="#8B5CF6" Foreground="White" BorderThickness="0" Padding="8,4" Margin="0,0,5,0" FontWeight="Bold" Cursor="Hand"/>
+                                                <Button Content="{Binding MultiGroupActionText}" Click="BtnMultiGroupProcess_Click" Background="{Binding MultiGroupActionColor}" Foreground="White" BorderThickness="0" Padding="8,4" Margin="0,0,5,0" FontWeight="Bold" Cursor="Hand"/>
+                                            </StackPanel>
+
+                                            <Button Content="{Binding BtnCleanSameDirText}" Visibility="{Binding VisSameDir}" Click="BtnCleanSameDir_Click" Background="#F59E0B" Foreground="White" BorderThickness="0" Padding="8,4" FontWeight="Bold" Cursor="Hand"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </GroupBox>
+        </DockPanel>
+
+        <GridSplitter x:Name="MainSplitter" Grid.Row="1" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center" Background="#E5E7EB" Cursor="SizeNS"/>
+
+        <Grid Grid.Row="2" Margin="0,5,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="5.5*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="5*"/>
+            </Grid.ColumnDefinitions>
+
+            <ListView x:Name="FileListView" Grid.Column="0" SelectionChanged="FileListView_SelectionChanged" MouseDoubleClick="FileListView_MouseDoubleClick" AlternationCount="2">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="BorderThickness" Value="2"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="Margin" Value="0,1"/>
+                        <Style.Triggers>
+                            <Trigger Property="ItemsControl.AlternationIndex" Value="0">
+                                <Setter Property="Background" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                <Setter Property="Background" Value="#F9FAFB"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Background" Value="#D1D5DB"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsPreviewA}" Value="True">
+                                <Setter Property="BorderBrush" Value="#3B82F6"/>
+                                <Setter Property="Background" Value="#EFF6FF"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsPreviewB}" Value="True">
+                                <Setter Property="BorderBrush" Value="#EF4444"/>
+                                <Setter Property="Background" Value="#FEF2F2"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Width="40">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        
+                        <GridViewColumn Header="預覽" Width="55">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Image Source="{Binding FilePath, Converter={StaticResource PathToImageConverter}, IsAsync=True}" 
+                                           Stretch="Uniform" MaxHeight="35" ToolTip="實體檔案縮圖"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <GridViewColumn x:Name="ColFileBigGroupId" Header="大群ID" DisplayMemberBinding="{Binding BigGroupIds}" Width="60"/>
+                        <GridViewColumn x:Name="ColMatchId" Header="小群ID" DisplayMemberBinding="{Binding DisplayGroupId}" Width="60"/>
+                        <GridViewColumn x:Name="ColSize" Header="大小" DisplayMemberBinding="{Binding SizeStr}" Width="70"/>
+                        <GridViewColumn x:Name="ColRes" Header="解析度" DisplayMemberBinding="{Binding Resolution}" Width="90"/>
+                        <GridViewColumn x:Name="ColDir" Header="所在目錄" DisplayMemberBinding="{Binding DirectoryPath}" Width="350"/>
+                        <GridViewColumn x:Name="ColFileName" Header="檔案名稱" DisplayMemberBinding="{Binding FileName}" Width="250"/>
+                    </GridView>
+                </ListView.View>
+
+                <ListView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem x:Name="MenuOpenDir" Header="📂 開啟所在目錄" Click="MenuItem_OpenDirectory_Click"/>
+                        <MenuItem x:Name="MenuOpenFile" Header="🖼️ 開啟檔案" Click="MenuItem_OpenFile_Click"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
+            </ListView>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#E5E7EB" Cursor="SizeWE"/>
+
+            <DockPanel Grid.Column="2" Margin="10,0,0,0">
+                <TextBlock DockPanel.Dock="Top" x:Name="TxtDualPreview" Text="👁️ 雙視窗同步對比" FontSize="18" FontWeight="Bold" Foreground="#1F2937" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,15,0,0">
+                    <TextBlock x:Name="TxtSafeTipBottom" Text="💡 提示：此刪除僅為「假刪除」移至隔離區，隨時可還原" Foreground="#059669" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,2" FontSize="13"/>
+                    <TextBlock x:Name="TxtPermanentWarn" Text="⚠️ 警告：若從系統資源回收桶清空，本軟體將無法再復原該檔案！" Foreground="#DC2626" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6" FontSize="12"/>
+                    <Button x:Name="BtnDeleteChecked" Content="🗑️ 隔離勾選的檔案 (批次)" Click="BtnDeleteChecked_Click" Background="#F97316" Foreground="White" Padding="15,8" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <Button x:Name="BtnManualDelete" Content="🗑️ 隔離右側預覽的圖片" Click="BtnManualIsolate_Click" Background="#EF4444" Foreground="White" Padding="15,8" FontWeight="Bold"/>
+                </StackPanel>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <GroupBox x:Name="GrpPreview1" Header="預覽圖片 1 (對應藍色框)" Margin="0,0,5,0" Padding="5" BorderBrush="#3B82F6" BorderThickness="2">
+                        <StackPanel>
+                            <Image x:Name="PreviewImageA" MaxHeight="250" Stretch="Uniform" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="TextResA" Text="-" FontWeight="Bold" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="TextSizeA" Text="-" Foreground="#4B5563" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="TextNameA" Text="-" TextWrapping="Wrap" Foreground="#6B7280" Margin="0,0,0,5" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <TextBlock x:Name="TextDirA" Text="-" TextWrapping="Wrap" Foreground="#9CA3AF" FontSize="11" Margin="0,0,0,10" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <RadioButton x:Name="RbPreviewA" Content="選取此圖片" GroupName="PreviewSelect" HorizontalAlignment="Center" FontWeight="Bold" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox x:Name="GrpPreview2" Grid.Column="1" Header="預覽圖片 2 (對應紅色框)" Margin="5,0,0,0" Padding="5" BorderBrush="#EF4444" BorderThickness="2">
+                        <StackPanel>
+                            <Image x:Name="PreviewImageB" MaxHeight="250" Stretch="Uniform" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="TextResB" Text="-" FontWeight="Bold" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="TextSizeB" Text="-" Foreground="#4B5563" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="TextNameB" Text="-" TextWrapping="Wrap" Foreground="#6B7280" Margin="0,0,0,5" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <TextBlock x:Name="TextDirB" Text="-" TextWrapping="Wrap" Foreground="#9CA3AF" FontSize="11" Margin="0,0,0,10" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <RadioButton x:Name="RbPreviewB" Content="選取此圖片" GroupName="PreviewSelect" HorizontalAlignment="Center" FontWeight="Bold" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+                </Grid>
+            </DockPanel>
+        </Grid>
+
+        <Grid x:Name="ReadMeOverlay" Visibility="Collapsed" Background="#B2000000" Grid.RowSpan="3">
+            <Border Background="White" CornerRadius="8" Margin="80,60" Padding="20" MaxWidth="900">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock x:Name="TxtReadMeTitle" Text="📖 FastImageDupe 系統說明" FontSize="20" FontWeight="Bold" Foreground="#1F2937" Margin="0,0,0,10"/>
+                    <TextBox x:Name="TxtReadMeContent" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="14" BorderThickness="1" BorderBrush="#E5E7EB" Padding="15" Background="#F9FAFB"/>
+                    <Button x:Name="BtnCloseReadMe" Grid.Row="2" Content="關閉 (Close)" Width="120" Padding="10,8" HorizontalAlignment="Center" Margin="0,15,0,0" Background="#3B82F6" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnCloseReadMe_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
