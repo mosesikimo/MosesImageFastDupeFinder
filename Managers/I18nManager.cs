@@ -83,7 +83,7 @@ namespace FastImageDupe.Core
             
             {"BtnToggleToSimple", "🔄 切換輕度模式"},
             {"BtnToggleToPro", "🔄 切換專業模式"},
-            {"BtnDeleteChecked", "🗑️ 隔離勾選的檔案 (批次)"},
+            {"BtnDeleteChecked", "🗑️ 隔離左側勾選的檔案 (批次)"},
 
             {"TxtSafeTipTop", "🛡️ 安心提示：所有刪除皆為「假刪除」，隨時可還原！"},
             
@@ -358,7 +358,7 @@ namespace FastImageDupe.Core
             
             {"BtnToggleToSimple", "🔄 Switch to Simple Mode"},
             {"BtnToggleToPro", "🔄 Switch to Pro Mode"},
-            {"BtnDeleteChecked", "🗑️ Isolate Checked Files"},
+            {"BtnDeleteChecked", "🗑️ Isolate Left side Checked Files"},
 
             {"TxtSafeTipTop", "🛡️ Tip: All deletions are safe 'Soft Deletes' and can be restored!"},
             

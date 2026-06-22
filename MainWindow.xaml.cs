@@ -895,7 +895,7 @@ namespace FastImageDupe
             }
         }
 
-        private async Task ProcessSmartMergeAsync(string targetDir, string sourceDir, List<ulong> groupIds, bool isSameDir, bool moveRemaining, bool moveMediaOnly, DirGroupItem dg, string smartId = "", string groupId = "", bool suppressUiFinish = false, CancellationToken ct = default)
+        private async Task<List<string>> ProcessSmartMergeAsync(string targetDir, string sourceDir, List<ulong> groupIds, bool isSameDir, bool moveRemaining, bool moveMediaOnly, DirGroupItem dg, string smartId = "", string groupId = "", bool suppressUiFinish = false, CancellationToken ct = default, Dictionary<ulong, List<DupeFileItem>>? globalFileIndex = null, bool skipSaveSettings = false)
         {
             int movedCount = 0, pseudoDeletedCount = 0, remainingMovedCount = 0;
             string? selectedDirA = (DirGroupListView.SelectedItem as DirGroupItem)?.DirA;
@@ -993,46 +993,47 @@ namespace FastImageDupe
                 }
             });
 
-            Application.Current.Dispatcher.Invoke(() => {
-                if (!suppressUiFinish)
-                {
+            // 批处理时完全跳过 Dispatcher 调用，提高性能
+            if (!suppressUiFinish)
+            {
+                Application.Current.Dispatcher.Invoke(() => {
                     foreach (var up in itemsToUpdate) up.Item.FilePath = up.NewPath;
                     foreach (var rm in itemsToRemove) DupeFiles.Remove(rm);
-                }
-                
-                if (newExcludes.Count > 0)
-                {
-                    var freshExcludes = GetPathList(ExcludePathTextBox);
-                    bool hasNew = false;
-                    foreach (var dir in newExcludes)
+                    
+                    // 批处理时延后处理排除路径，不在此处理
+                    if (newExcludes.Count > 0)
                     {
-                        if (!freshExcludes.Contains(dir, StringComparer.OrdinalIgnoreCase))
+                        var freshExcludes = GetPathList(ExcludePathTextBox);
+                        bool hasNew = false;
+                        foreach (var dir in newExcludes)
                         {
-                            freshExcludes.Add(dir);
-                            hasNew = true;
+                            if (!freshExcludes.Contains(dir, StringComparer.OrdinalIgnoreCase))
+                            {
+                                freshExcludes.Add(dir);
+                                hasNew = true;
+                            }
+                        }
+                        if (hasNew)
+                        {
+                            ExcludePathTextBox.Text = string.Join("; ", freshExcludes);
+                            if (!skipSaveSettings) SaveSettings();
                         }
                     }
-                    if (hasNew)
-                    {
-                        ExcludePathTextBox.Text = string.Join("; ", freshExcludes);
-                        SaveSettings();
-                    }
-                }
 
-                if (!suppressUiFinish)
-                {
                     PostActionUIRefresh(selectedDirA, selectedDirB, false);
-                }
-            });
+                });
 
-            if (!suppressUiFinish && !ct.IsCancellationRequested)
-            {
-                StatusText.Text = $"✅ 處理完成！搬移正本: {movedCount} | 隔離排除: {pseudoDeletedCount} | 搬移剩餘: {remainingMovedCount}";
-                _baseStatusText = StatusText.Text;
-                ForceGarbageCollection();
-                MessageBox.Show(string.Format(I18nManager.Get("MsgMergeComplete"), movedCount, pseudoDeletedCount, remainingMovedCount), 
-                                I18nManager.Get("TitleMergeReport"), MessageBoxButton.OK, MessageBoxImage.Information);
+                if (!ct.IsCancellationRequested)
+                {
+                    StatusText.Text = $"✅ 處理完成！搬移正本: {movedCount} | 隔離排除: {pseudoDeletedCount} | 搬移剩餘: {remainingMovedCount}";
+                    _baseStatusText = StatusText.Text;
+                    ForceGarbageCollection();
+                    MessageBox.Show(string.Format(I18nManager.Get("MsgMergeComplete"), movedCount, pseudoDeletedCount, remainingMovedCount), 
+                                    I18nManager.Get("TitleMergeReport"), MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
+
+            return newExcludes;
         }
         #endregion
 
@@ -1069,6 +1070,12 @@ namespace FastImageDupe
                 long lastGroupUpdateTicks = 0;
                 long groupIntervalTicks = Stopwatch.Frequency * 5;
 
+                // 🚀【效能核彈】在迴圈開始前，於 UI 執行緒建立全域的 O(1) 字典快照
+                var globalFileIndex = DupeFiles.GroupBy(x => x.GroupId).ToDictionary(g => g.Key, g => g.ToList());
+                
+                // 收集所有排除路徑，在最後一次性處理
+                var allNewExcludes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var dg in selectedGroups)
                 {
                     if (_cts.Token.IsCancellationRequested) break; 
@@ -1091,9 +1098,38 @@ namespace FastImageDupe
                     }
                     else 
                     {
-                        if (dg.IsSameDir) await ProcessSmartMergeAsync(dg.DirA, dg.DirA, dg.GroupIds, true, false, false, dg, smartBatchId, groupBatchId, true, _cts.Token);
-                        else await ProcessSmartMergeAsync(dg.IsTargetDirA ? dg.DirA : dg.DirB, dg.IsTargetDirA ? dg.DirB : dg.DirA, dg.GroupIds, false, !dg.MoveDuplicatesOnly && dg.MoveAllFiles, !dg.MoveDuplicatesOnly && dg.MoveMediaOnly, dg, smartBatchId, groupBatchId, true, _cts.Token);
+                        List<string> excludes;
+                        if (dg.IsSameDir) {
+                            excludes = await ProcessSmartMergeAsync(dg.DirA, dg.DirA, dg.GroupIds, true, false, false, dg, smartBatchId, groupBatchId, true, _cts.Token, globalFileIndex, true);
+                            foreach (var ex in excludes) allNewExcludes.Add(ex);
+                        }
+                        else {
+                            // 批处理时禁用 moveRemaining，因为每个群组都扫描整个目录太慢了
+                            excludes = await ProcessSmartMergeAsync(dg.IsTargetDirA ? dg.DirA : dg.DirB, dg.IsTargetDirA ? dg.DirB : dg.DirA, dg.GroupIds, false, false, false, dg, smartBatchId, groupBatchId, true, _cts.Token, globalFileIndex, true);
+                            foreach (var ex in excludes) allNewExcludes.Add(ex);
+                        }
                     }
+                }
+                
+                // 在最後一次性處理所有排除路徑
+                if (!_cts.Token.IsCancellationRequested && allNewExcludes.Count > 0)
+                {
+                    Application.Current.Dispatcher.Invoke(() => {
+                        var freshExcludes = GetPathList(ExcludePathTextBox);
+                        bool hasNew = false;
+                        foreach (var dir in allNewExcludes)
+                        {
+                            if (!freshExcludes.Contains(dir, StringComparer.OrdinalIgnoreCase))
+                            {
+                                freshExcludes.Add(dir);
+                                hasNew = true;
+                            }
+                        }
+                        if (hasNew)
+                        {
+                            ExcludePathTextBox.Text = string.Join("; ", freshExcludes);
+                        }
+                    });
                 }
             }
             finally
@@ -1109,11 +1145,16 @@ namespace FastImageDupe
                 if (_cts.Token.IsCancellationRequested) {
                     StatusText.Text = "🛑 處理已中斷！正在同步畫面狀態...";
                     MessageBox.Show("處理已中斷，部分檔案可能已搬移。\n\n畫面即將自動重新整理，以確保清單正確。", "中斷", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await AutoRescanAsync();
                 }
-
-                await AutoRescanAsync();
-
-                if (!_cts.Token.IsCancellationRequested) {
+                else
+                {
+                    // 正常完成時，只更新 UI 而不重新掃描
+                    Application.Current.Dispatcher.Invoke(() => {
+                        SaveSettings();
+                        PostActionUIRefresh(null, null, false);
+                    });
+                    
                     MessageBox.Show(I18nManager.Get("MsgSmartDone"), I18nManager.Get("TitleSmartReport"), MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
